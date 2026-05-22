@@ -4,7 +4,7 @@ import aiofiles
 import aiohttp
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 from urllib3.util.retry import Retry
-from youtubesearchpython.__future__ import VideosSearch, CustomSearch
+from py_yt import VideosSearch, Playlist
 from config import YOUTUBE_IMG_URL
 
 # Constants
