@@ -145,7 +145,7 @@ async def play_commnd(
                 "⚠️ <b>Security Alert!</b>\n\n"
                 "<b>Invalid or potentially harmful URL detected.</b>\n"
                 "Only valid music platform URLs are allowed.\n\n"
-                "Protected From @SexyProfessor"
+                "Protected From @zolvid"
             )
 
     if audio_telegram:
@@ -407,7 +407,7 @@ async def play_commnd(
                 "⚠️ <b>Security Alert!</b>\n\n"
                 "<b>This request contains a potentially harmful pattern.</b>\n"
                 "Please use normal search terms.\n\n"
-                "Protected From @SexyProfessor"
+                "Protected From @zolvid"
             )
         query = sanitized_query
 
