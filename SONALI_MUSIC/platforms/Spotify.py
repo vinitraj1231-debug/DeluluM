@@ -41,7 +41,7 @@ class SpotifyAPI:
             title = result["title"]
             vidid = result["id"]
             duration_min = result["duration"]
-            thumbnail = result["thumbnails"][0]["url"].split("?")[0]
+            thumbnail = "https://graph.org/file/4fb9a698630aa5b47be05-060979d72b7752fc8f.jpg"
         track_details = {
             "title": title,
             "link": ytlink,

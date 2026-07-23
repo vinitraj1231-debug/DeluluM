@@ -67,7 +67,7 @@ async def start_pm(client, message: Message, _):
                 title = result["title"]
                 duration = result["duration"]
                 views = result["viewCount"]["short"]
-                thumbnail = result["thumbnails"][0]["url"].split("?")[0]
+                thumbnail = "https://graph.org/file/4fb9a698630aa5b47be05-060979d72b7752fc8f.jpg"
                 channellink = result["channel"]["link"]
                 channel = result["channel"]["name"]
                 link = result["link"]
