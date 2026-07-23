@@ -18,7 +18,7 @@ async def start_clone(bot_token: str, owner_id: int, session_string: str = None)
         # Avoid creating duplicate clients
         bot_id = int(bot_token.split(":")[0])
         if bot_id in cloned_bots:
-            return cloned_bots[bot_id]
+            return cloned_bots[bot_id], None
 
         client = Client(
             name=f"cloned_bot_{bot_id}",
@@ -29,6 +29,12 @@ async def start_clone(bot_token: str, owner_id: int, session_string: str = None)
         )
         await client.start()
 
+        # Set essential attributes so that other handlers referencing app.id, app.username etc. don't fail
+        client.id = client.me.id
+        client.name = client.me.first_name + " " + (client.me.last_name or "")
+        client.username = client.me.username
+        client.mention = client.me.mention
+
         # Copy handlers from main app
         for group, handlers in _main_app.dispatcher.groups.items():
             for handler in handlers:
@@ -36,6 +42,7 @@ async def start_clone(bot_token: str, owner_id: int, session_string: str = None)
 
         cloned_bots[client.me.id] = client
 
+        ass_error = None
         # Now start assistant and PyTgCalls if session_string is provided
         if session_string:
             try:
@@ -80,12 +87,13 @@ async def start_clone(bot_token: str, owner_id: int, session_string: str = None)
                 cloned_calls[client.me.id] = cloned_call
                 print(f"Assistant & PyTgCalls started for cloned bot @{client.me.username}")
             except Exception as ex:
+                ass_error = str(ex)
                 print(f"Error starting assistant/PyTgCalls for cloned bot @{client.me.username}: {ex}")
 
-        return client
+        return client, ass_error
     except Exception as e:
         print(f"Error starting cloned bot with token {bot_token}: {e}")
-        return None
+        return None, str(e)
 
 
 @app.on_message(filters.command(["clone"]) & filters.private)
@@ -127,9 +135,13 @@ async def clone_bot(client, message: Message):
 
     try:
         # try starting the clone
-        cloned_bot = await start_clone(bot_token, user_id, session_string)
+        cloned_bot, ass_error = await start_clone(bot_token, user_id, session_string)
         if not cloned_bot:
-            return await mystic.edit_text("<b>» Failed to clone bot! Please make sure the bot token and session string are valid and not already running elsewhere.</b>")
+            return await mystic.edit_text(
+                "<b>❌ Failed to clone bot!</b>\n\n"
+                f"<b>Reason:</b> <code>{ass_error or 'Unknown error starting Client'}</code>\n\n"
+                "Please make sure the bot token is valid and not already running elsewhere."
+            )
 
         # save to database
         await clone_db.update_one(
@@ -137,22 +149,31 @@ async def clone_bot(client, message: Message):
             {
                 "$set": {
                     "owner_id": user_id,
-                    "username": cloned_bot.me.username,
-                    "name": cloned_bot.me.first_name,
+                    "username": cloned_bot.username,
+                    "name": cloned_bot.name,
                     "session_string": session_string or ""
                 }
             },
             upsert=True
         )
 
-        await mystic.edit_text(
+        success_text = (
             f"<b>» Successfully Cloned! 🎉</b>\n\n"
-            f"<b>Bot Name:</b> {cloned_bot.me.first_name}\n"
-            f"<b>Bot Username:</b> @{cloned_bot.me.username}\n\n"
-            f"You can now use all music commands on @{cloned_bot.me.username}!"
+            f"<b>Bot Name:</b> {cloned_bot.name}\n"
+            f"<b>Bot Username:</b> @{cloned_bot.username}\n"
         )
+        if session_string:
+            if ass_error:
+                success_text += f"<b>⚠️ Assistant Status:</b> <code>Failed to start ({ass_error})</code>\n\n<i>Note: Your bot clone is running, but assistant features (like playing music in voice chat) will not work because of assistant session error. You can unclone and clone again with a valid session.</i>"
+            else:
+                success_text += f"<b>✅ Assistant Status:</b> <code>Running & Connected</code>\n\n"
+        else:
+            success_text += f"<b>⚠️ Assistant Status:</b> <code>Skipped</code>\n\n<i>Note: You skipped the assistant session string. Music streaming commands will not work unless you clone with an assistant session.</i>"
+
+        success_text += f"\n\nYou can now use all music commands on @{cloned_bot.username}!"
+        await mystic.edit_text(success_text)
     except Exception as e:
-        await mystic.edit_text(f"<b>» Error during cloning:</b> <code>{str(e)}</code>")
+        await mystic.edit_text(f"<b>❌ Error during cloning:</b> <code>{str(e)}</code>")
 
 
 @app.on_message(filters.command(["unclone"]) & filters.private)
@@ -435,9 +456,13 @@ async def handle_clone_states(client, message: Message):
         mystic = await message.reply_text("<b>» Cloning your bot... Please wait.</b>")
 
         try:
-            cloned_bot = await start_clone(bot_token, user_id, session_string)
+            cloned_bot, ass_error = await start_clone(bot_token, user_id, session_string)
             if not cloned_bot:
-                return await mystic.edit_text("<b>❌ Failed to clone bot! Please make sure the bot token and session string are valid and not already running elsewhere.</b>")
+                return await mystic.edit_text(
+                    "<b>❌ Failed to clone bot!</b>\n\n"
+                    f"<b>Reason:</b> <code>{ass_error or 'Unknown error starting Client'}</code>\n\n"
+                    "Please make sure the bot token is valid and not already running elsewhere."
+                )
 
             # save to database
             await clone_db.update_one(
@@ -445,20 +470,29 @@ async def handle_clone_states(client, message: Message):
                 {
                     "$set": {
                         "owner_id": user_id,
-                        "username": cloned_bot.me.username,
-                        "name": cloned_bot.me.first_name,
+                        "username": cloned_bot.username,
+                        "name": cloned_bot.name,
                         "session_string": session_string or ""
                     }
                 },
                 upsert=True
             )
 
-            await mystic.edit_text(
+            success_text = (
                 f"<b>» Successfully Cloned! 🎉</b>\n\n"
-                f"<b>Bot Name:</b> {cloned_bot.me.first_name}\n"
-                f"<b>Bot Username:</b> @{cloned_bot.me.username}\n\n"
-                f"You can now use all music commands on @{cloned_bot.me.username}!"
+                f"<b>Bot Name:</b> {cloned_bot.name}\n"
+                f"<b>Bot Username:</b> @{cloned_bot.username}\n"
             )
+            if session_string:
+                if ass_error:
+                    success_text += f"<b>⚠️ Assistant Status:</b> <code>Failed to start ({ass_error})</code>\n\n<i>Note: Your bot clone is running, but assistant features (like playing music in voice chat) will not work because of assistant session error. You can unclone and clone again with a valid session.</i>"
+                else:
+                    success_text += f"<b>✅ Assistant Status:</b> <code>Running & Connected</code>\n\n"
+            else:
+                success_text += f"<b>⚠️ Assistant Status:</b> <code>Skipped</code>\n\n<i>Note: You skipped the assistant session string. Music streaming commands will not work unless you clone with an assistant session.</i>"
+
+            success_text += f"\n\nYou can now use all music commands on @{cloned_bot.username}!"
+            await mystic.edit_text(success_text)
         except Exception as e:
             await mystic.edit_text(f"<b>❌ Error during cloning:</b> <code>{str(e)}</code>")
 
