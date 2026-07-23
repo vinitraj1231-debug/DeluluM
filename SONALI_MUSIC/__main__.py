@@ -49,8 +49,18 @@ async def init():
             async for clone in clone_db.find():
                 bot_token = clone["bot_token"]
                 owner_id = clone["owner_id"]
+                session_string = clone.get("session_string") or None
                 LOGGER(__name__).info(f"Restarting cloned bot: @{clone.get('username')}")
-                await start_clone(bot_token, owner_id)
+                try:
+                    cloned_bot, ass_err = await start_clone(bot_token, owner_id, session_string)
+                    if cloned_bot:
+                        LOGGER(__name__).info(f"Successfully started cloned bot: @{cloned_bot.username}")
+                        if ass_err:
+                            LOGGER(__name__).warning(f"Assistant failed to start for cloned bot @{cloned_bot.username}: {ass_err}")
+                    else:
+                        LOGGER(__name__).error(f"Failed to start cloned bot with token {bot_token[:10]}...: {ass_err}")
+                except Exception as ex:
+                    LOGGER(__name__).error(f"Error starting cloned bot @{clone.get('username')}: {ex}")
         except Exception as e:
             LOGGER(__name__).error(f"Error restarting cloned bots: {e}")
 

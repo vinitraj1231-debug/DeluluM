@@ -9,6 +9,9 @@ MUST_JOIN = "kriti_bot_update"
 #------------------------
 @app.on_message(filters.incoming & filters.private, group=-1)
 async def must_join_channel(app: Client, msg: Message):
+    from SONALI_MUSIC import _main_app
+    if app.id != _main_app.id:
+        return
     if not MUST_JOIN:
         return
     try:
