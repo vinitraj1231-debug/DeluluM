@@ -43,6 +43,11 @@ async def _clear_(chat_id: int):
     db[chat_id] = []
     await remove_active_video_chat(chat_id)
     await remove_active_chat(chat_id)
+    try:
+        from SONALI_MUSIC.utils.database import sync_queue_to_mongo
+        await sync_queue_to_mongo(chat_id)
+    except Exception as e:
+        print(f"Error syncing queue in _clear_: {e}")
 
 
 class Call(PyTgCalls):
@@ -151,6 +156,11 @@ class Call(PyTgCalls):
             await assistant.leave_call(chat_id, close=False)
         except Exception:
             pass
+        try:
+            from SONALI_MUSIC.utils.database import sync_queue_to_mongo
+            await sync_queue_to_mongo(chat_id)
+        except Exception as e:
+            print(f"Error syncing queue: {e}")
 
     
     async def stop_stream_force(self, chat_id: int):
@@ -552,6 +562,11 @@ class Call(PyTgCalls):
                 )
                 db[chat_id][0]["mystic"] = run
                 db[chat_id][0]["markup"] = "stream"
+        try:
+            from SONALI_MUSIC.utils.database import sync_queue_to_mongo
+            await sync_queue_to_mongo(chat_id)
+        except Exception as e:
+            print(f"Error syncing queue: {e}")
 
     
     async def ping(self):
@@ -596,16 +611,22 @@ class Call(PyTgCalls):
 
             @client.on_update()
             async def _update_handler(_, update: types.Update, _client=client):
-                if isinstance(update, types.StreamEnded):
-                    if update.stream_type == types.StreamEnded.Type.AUDIO:
-                        await self.change_stream(_client, update.chat_id)
-                elif isinstance(update, types.ChatUpdate):
-                    if update.status in [
-                        types.ChatUpdate.Status.KICKED,
-                        types.ChatUpdate.Status.LEFT_GROUP,
-                        types.ChatUpdate.Status.CLOSED_VOICE_CHAT,
-                    ]:
-                        await self.stop_stream(update.chat_id)
+                from SONALI_MUSIC import current_client, cloned_chats, _main_app
+                chat_client = cloned_chats.get(update.chat_id, _main_app)
+                token = current_client.set(chat_client)
+                try:
+                    if isinstance(update, types.StreamEnded):
+                        if update.stream_type == types.StreamEnded.Type.AUDIO:
+                            await self.change_stream(_client, update.chat_id)
+                    elif isinstance(update, types.ChatUpdate):
+                        if update.status in [
+                            types.ChatUpdate.Status.KICKED,
+                            types.ChatUpdate.Status.LEFT_GROUP,
+                            types.ChatUpdate.Status.CLOSED_VOICE_CHAT,
+                        ]:
+                            await self.stop_stream(update.chat_id)
+                finally:
+                    current_client.reset(token)
 
 
 Sona = Call()

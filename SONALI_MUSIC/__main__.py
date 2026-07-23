@@ -37,13 +37,32 @@ async def init():
     for all_module in ALL_MODULES:
         importlib.import_module("SONALI_MUSIC.plugins" + all_module)
     LOGGER("SONALI_MUSIC.plugins").info("𝐀𝐥𝐥 𝐅𝐞𝐚𝐭𝐮𝐫𝐞𝐬 𝐋𝐨𝐚𝐝𝐞𝐝 𝐁𝐚𝐛𝐲🥳...")
+
+    # Wrap all registered callbacks to set current_client context dynamically
+    from SONALI_MUSIC import wrap_all_handlers
+    wrap_all_handlers()
+
+    # Start all cloned bots from MongoDB
+    from SONALI_MUSIC.plugins.sudo.clone import start_clone, clone_db
+    async def restart_clones():
+        try:
+            async for clone in clone_db.find():
+                bot_token = clone["bot_token"]
+                owner_id = clone["owner_id"]
+                LOGGER(__name__).info(f"Restarting cloned bot: @{clone.get('username')}")
+                await start_clone(bot_token, owner_id)
+        except Exception as e:
+            LOGGER(__name__).error(f"Error restarting cloned bots: {e}")
+
+    await restart_clones()
+
     await userbot.start()
     await Sona.start()
     try:
         await Sona.stream_call("https://te.legra.ph/file/29f784eb49d230ab62e9e.mp4")
     except NoActiveGroupCall:
         LOGGER("SONALI_MUSIC").error(
-            "𝗣𝗹𝗭 𝗦𝗧𝗔𝗥𝗧 𝗬𝗢𝗨𝗥 𝗟𝗢𝗚 𝗚𝗥𝗢𝗨𝗣 𝗩𝗢𝗜𝗖𝗘𝗖𝗛𝗔𝗧\𝗖𝗛𝗔𝗡𝗡𝗘𝗟\n\n𝗧𝗛𝗨𝗡𝗗𝗘𝗥 𝗕𝗢𝗧 𝗦𝗧𝗢𝗣........"
+            "𝗣𝗹𝗭 𝗦𝗧𝗔𝗥𝗧 𝗬𝗢𝗨Ｒ 𝗟𝗢𝗚 𝗚𝗥𝗢𝗨𝗣 𝗩𝗢𝗜𝗖𝗘𝗖𝗛𝗔𝗧\🇨𝗛𝗔𝗡𝗡𝗘𝗟\n\n𝗧🇭𝗨𝗡𝗗𝗘𝗥 𝗕𝗢𝗧 𝗦𝗧𝗢𝗣........"
         )
         exit()
     except:
@@ -53,6 +72,15 @@ async def init():
         "╔═════ஜ۩۞۩ஜ════╗\n  ☠︎︎𝗠𝗔𝗗𝗘 𝗕𝗬 RAJ☠︎︎\n╚═════ஜ۩۞۩ஜ════╝"
     )
     await idle()
+
+    # Stop all cloned bots
+    from SONALI_MUSIC.plugins.sudo.clone import cloned_bots
+    for bot_id, client in list(cloned_bots.items()):
+        try:
+            await client.stop()
+        except:
+            pass
+
     await app.stop()
     await userbot.stop()
     LOGGER("SONALI_MUSIC").info("𝗦𝗧𝗢𝗣 RAJ 𝗠𝗨𝗦𝗜𝗖 𝗕𝗢𝗧..")
