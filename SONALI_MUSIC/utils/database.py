@@ -5,6 +5,7 @@ from SONALI_MUSIC import userbot
 from SONALI_MUSIC.core.mongo import mongodb
 
 authdb = mongodb.adminauth
+queuedb = mongodb.queues
 authuserdb = mongodb.authuser
 autoenddb = mongodb.autoend
 assdb = mongodb.assistants
@@ -364,13 +365,13 @@ async def check_nonadmin_chat(chat_id: int) -> bool:
 
 async def is_nonadmin_chat(chat_id: int) -> bool:
     mode = nonadmin.get(chat_id)
-    if not mode:
+    if mode is None:
         user = await authdb.find_one({"chat_id": chat_id})
         if not user:
-            nonadmin[chat_id] = False
-            return False
-        nonadmin[chat_id] = True
-        return True
+            nonadmin[chat_id] = True
+            return True
+        nonadmin[chat_id] = False
+        return False
     return mode
 
 
@@ -378,16 +379,14 @@ async def add_nonadmin_chat(chat_id: int):
     nonadmin[chat_id] = True
     is_admin = await check_nonadmin_chat(chat_id)
     if is_admin:
-        return
-    return await authdb.insert_one({"chat_id": chat_id})
+        await authdb.delete_one({"chat_id": chat_id})
 
 
 async def remove_nonadmin_chat(chat_id: int):
     nonadmin[chat_id] = False
     is_admin = await check_nonadmin_chat(chat_id)
     if not is_admin:
-        return
-    return await authdb.delete_one({"chat_id": chat_id})
+        await authdb.insert_one({"chat_id": chat_id})
 
 
 async def is_on_off(on_off: int) -> bool:
@@ -461,11 +460,32 @@ async def get_served_users() -> list:
     return users_list
 
 
-async def add_served_user(user_id: int):
-    is_served = await is_served_user(user_id)
-    if is_served:
+async def add_served_user(user_id: int, username: str = None, first_name: str = None, last_name: str = None):
+    import datetime
+    now = datetime.datetime.utcnow().isoformat() + "Z"
+    user = await usersdb.find_one({"user_id": user_id})
+    if user:
+        update_data = {"last_seen": now}
+        if username is not None:
+            update_data["username"] = username
+        if first_name is not None:
+            update_data["first_name"] = first_name
+        if last_name is not None:
+            update_data["last_name"] = last_name
+        await usersdb.update_one({"user_id": user_id}, {"$set": update_data})
         return
-    return await usersdb.insert_one({"user_id": user_id})
+    doc = {
+        "user_id": user_id,
+        "username": username or "",
+        "first_name": first_name or "",
+        "last_name": last_name or "",
+        "joined_at": now,
+        "last_seen": now,
+        "play_count": 0,
+        "is_premium": False,
+        "blocked": False
+    }
+    return await usersdb.insert_one(doc)
 
 
 async def get_served_chats() -> list:
@@ -482,11 +502,30 @@ async def is_served_chat(chat_id: int) -> bool:
     return True
 
 
-async def add_served_chat(chat_id: int):
+async def add_served_chat(chat_id: int, title: str = None, chat_type: str = None):
+    import datetime
+    now = datetime.datetime.utcnow().isoformat() + "Z"
     is_served = await is_served_chat(chat_id)
     if is_served:
+        update_data = {}
+        if title is not None:
+            update_data["title"] = title
+        if chat_type is not None:
+            update_data["chat_type"] = chat_type
+        if update_data:
+            await chatsdb.update_one({"chat_id": chat_id}, {"$set": update_data})
         return
-    return await chatsdb.insert_one({"chat_id": chat_id})
+    doc = {
+        "chat_id": chat_id,
+        "chat_type": chat_type or "supergroup",
+        "title": title or "Music Group",
+        "language": "en",
+        "play_mode": "group",
+        "enabled": True,
+        "admin_only": False,
+        "created_at": now
+    }
+    return await chatsdb.insert_one(doc)
 
 
 async def blacklisted_chats() -> list:
@@ -644,3 +683,57 @@ async def remove_banned_user(user_id: int):
     if not is_gbanned:
         return
     return await blockeddb.delete_one({"user_id": user_id})
+
+
+async def sync_queue_to_mongo(chat_id: int):
+    try:
+        import datetime
+        from SONALI_MUSIC.misc import db
+        # get active loop mode
+        loop_val = await get_loop(chat_id)
+        loop_mode = "off"
+        if loop_val == 1:
+            loop_mode = "single"
+        elif loop_val > 1:
+            loop_mode = "all"
+
+        check = db.get(chat_id, [])
+        current_song = None
+        queue_list = []
+        if check:
+            # First element is the current song
+            current_song = {
+                "title": check[0].get("title"),
+                "duration": check[0].get("dur"),
+                "by": check[0].get("by"),
+                "vidid": check[0].get("vidid")
+            }
+            # Rest are queued
+            for item in check[1:]:
+                queue_list.append({
+                    "title": item.get("title"),
+                    "duration": item.get("dur"),
+                    "by": item.get("by"),
+                    "vidid": item.get("vidid")
+                })
+
+        from SONALI_MUSIC.utils.database import is_music_playing
+        paused = not await is_music_playing(chat_id)
+
+        now = datetime.datetime.utcnow().isoformat() + "Z"
+        await queuedb.update_one(
+            {"chat_id": chat_id},
+            {
+                "$set": {
+                    "current_song": current_song,
+                    "queue": queue_list,
+                    "loop_mode": loop_mode,
+                    "shuffle": False,
+                    "paused": paused,
+                    "updated_at": now
+                }
+            },
+            upsert=True
+        )
+    except Exception as e:
+        print(f"Error syncing queue: {e}")

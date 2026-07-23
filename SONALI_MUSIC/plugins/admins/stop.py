@@ -18,6 +18,11 @@ async def stop_music(cli, message: Message, _, chat_id):
         return
     await Sona.stop_stream(chat_id)
     await set_loop(chat_id, 0)
+    try:
+        from SONALI_MUSIC.utils.database import sync_queue_to_mongo
+        await sync_queue_to_mongo(chat_id)
+    except Exception as e:
+        print(f"Error syncing queue: {e}")
     await message.reply_text(
         _["admin_5"].format(message.from_user.mention), reply_markup=close_markup(_)
     )

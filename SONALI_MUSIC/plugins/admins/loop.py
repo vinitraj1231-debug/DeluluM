@@ -24,6 +24,11 @@ async def admins(cli, message: Message, _, chat_id):
             if int(state) > 10:
                 state = 10
             await set_loop(chat_id, state)
+            try:
+                from SONALI_MUSIC.utils.database import sync_queue_to_mongo
+                await sync_queue_to_mongo(chat_id)
+            except Exception as e:
+                print(f"Error syncing queue: {e}")
             return await message.reply_text(
                 text=_["admin_18"].format(state, message.from_user.mention),
                 reply_markup=close_markup(_),
@@ -32,12 +37,22 @@ async def admins(cli, message: Message, _, chat_id):
             return await message.reply_text(_["admin_17"])
     elif state.lower() == "enable":
         await set_loop(chat_id, 10)
+        try:
+            from SONALI_MUSIC.utils.database import sync_queue_to_mongo
+            await sync_queue_to_mongo(chat_id)
+        except Exception as e:
+            print(f"Error syncing queue: {e}")
         return await message.reply_text(
             text=_["admin_18"].format(state, message.from_user.mention),
             reply_markup=close_markup(_),
         )
     elif state.lower() == "disable":
         await set_loop(chat_id, 0)
+        try:
+            from SONALI_MUSIC.utils.database import sync_queue_to_mongo
+            await sync_queue_to_mongo(chat_id)
+        except Exception as e:
+            print(f"Error syncing queue: {e}")
         return await message.reply_text(
             _["admin_19"].format(message.from_user.mention),
             reply_markup=close_markup(_),

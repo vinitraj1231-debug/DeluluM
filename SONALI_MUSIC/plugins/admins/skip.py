@@ -235,3 +235,8 @@ async def skip(cli, message: Message, _, chat_id):
             )
             db[chat_id][0]["mystic"] = run
             db[chat_id][0]["markup"] = "stream"
+    try:
+        from SONALI_MUSIC.utils.database import sync_queue_to_mongo
+        await sync_queue_to_mongo(chat_id)
+    except Exception as e:
+        print(f"Error syncing queue: {e}")

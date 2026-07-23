@@ -424,3 +424,8 @@ async def stream(
             db[chat_id][0]["mystic"] = run
             db[chat_id][0]["markup"] = "tg"
             await mystic.delete()
+    try:
+        from SONALI_MUSIC.utils.database import sync_queue_to_mongo
+        await sync_queue_to_mongo(chat_id)
+    except Exception as e:
+        print(f"Error syncing queue to mongo: {e}")
