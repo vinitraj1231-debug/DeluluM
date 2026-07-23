@@ -19,6 +19,7 @@ import contextvars
 from functools import wraps
 import inspect
 from pyrogram import Client
+from pyrogram.errors import MessageNotModified
 
 current_client = contextvars.ContextVar("current_client")
 cloned_chats = {}  # Map: chat_id -> Client (to remember which clone ran the chat)
@@ -86,6 +87,8 @@ def wrap_callback(callback):
             token = current_client.set(client)
             try:
                 return await callback(client, *args, **kwargs)
+            except MessageNotModified:
+                pass
             finally:
                 current_client.reset(token)
         return async_wrapper
@@ -107,6 +110,8 @@ def wrap_callback(callback):
             token = current_client.set(client)
             try:
                 return callback(client, *args, **kwargs)
+            except MessageNotModified:
+                pass
             finally:
                 current_client.reset(token)
         return sync_wrapper
