@@ -82,6 +82,20 @@ async def set_assistant(chat_id):
 
 
 async def get_assistant(chat_id: int) -> str:
+    from SONALI_MUSIC import current_client, _main_app, cloned_chats
+    active_client = cloned_chats.get(chat_id)
+    if not active_client:
+        try:
+            active_client = current_client.get()
+        except LookupError:
+            active_client = _main_app
+
+    if active_client and hasattr(active_client, "me") and active_client.me and active_client.me.id != _main_app.id:
+        from SONALI_MUSIC.plugins.sudo.clone import cloned_assistants
+        cloned_ass = cloned_assistants.get(active_client.me.id)
+        if cloned_ass:
+            return cloned_ass
+
     from SONALI_MUSIC.core.userbot import assistants
 
     assistant = assistantdict.get(chat_id)
@@ -122,6 +136,20 @@ async def set_calls_assistant(chat_id):
 
 
 async def group_assistant(self, chat_id: int) -> int:
+    from SONALI_MUSIC import current_client, _main_app, cloned_chats
+    active_client = cloned_chats.get(chat_id)
+    if not active_client:
+        try:
+            active_client = current_client.get()
+        except LookupError:
+            active_client = _main_app
+
+    if active_client and hasattr(active_client, "me") and active_client.me and active_client.me.id != _main_app.id:
+        from SONALI_MUSIC.plugins.sudo.clone import cloned_calls
+        cloned_call = cloned_calls.get(active_client.me.id)
+        if cloned_call:
+            return cloned_call
+
     from SONALI_MUSIC.core.userbot import assistants
 
     assistant = assistantdict.get(chat_id)

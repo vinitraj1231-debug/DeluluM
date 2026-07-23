@@ -6,7 +6,7 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from youtubesearchpython.__future__ import VideosSearch
  
 import config
-from SONALI_MUSIC import app
+from SONALI_MUSIC import app, _main_app
 from SONALI_MUSIC.misc import _boot_
 from SONALI_MUSIC.plugins.sudo.sudoers import sudoers_list
 from SONALI_MUSIC.utils.database import get_served_chats, get_served_users, get_sudoers
@@ -115,9 +115,15 @@ async def start_pm(client, message: Message, _):
         await baby.edit_text(f"**__ʙσᴛ sᴛᴧʀᴛєᴅ.....💤__**")
         await baby.delete()
         
+        caption = _["start_2"].format(message.from_user.mention, client.mention)
+        if client.me.id == _main_app.id:
+            caption += f"\n\n**🤖 Clone your bot example:** `/clone 8393838383:uege8sbz8sbsns`"
+        else:
+            caption += f"\n\n**🔗 This bot is cloned by:** @{_main_app.username}"
+
         await message.reply_photo(
             random.choice(NEXIO),
-            caption=_["start_2"].format(message.from_user.mention, app.mention),
+            caption=caption,
             reply_markup=InlineKeyboardMarkup(out),
             has_spoiler=True,
         )
@@ -132,9 +138,15 @@ async def start_pm(client, message: Message, _):
 async def start_gp(client, message: Message, _):
     out = start_panel(_)
     uptime = int(time.time() - _boot_)
+    caption = _["start_1"].format(client.mention, get_readable_time(uptime))
+    if client.me.id == _main_app.id:
+        caption += f"\n\n**🤖 Clone your bot example:** `/clone 8393838383:uege8sbz8sbsns`"
+    else:
+        caption += f"\n\n**🔗 This bot is cloned by:** @{_main_app.username}"
+
     await message.reply_photo(
         random.choice(NEXIO),
-        caption=_["start_1"].format(app.mention, get_readable_time(uptime)),
+        caption=caption,
         reply_markup=InlineKeyboardMarkup(out),
         has_spoiler=True,
     )
@@ -167,14 +179,21 @@ async def welcome(client, message: Message):
                     return await app.leave_chat(message.chat.id)
  
                 out = start_panel(_)
+                mention = message.from_user.mention if message.from_user else "User"
+                caption = _["start_3"].format(
+                    mention,
+                    client.mention,
+                    message.chat.title,
+                    client.mention,
+                )
+                if client.me.id == _main_app.id:
+                    caption += f"\n\n**🤖 Clone your bot example:** `/clone 8393838383:uege8sbz8sbsns`"
+                else:
+                    caption += f"\n\n**🔗 This bot is cloned by:** @{_main_app.username}"
+
                 await message.reply_photo(
                     random.choice(NEXIO),
-                    caption=_["start_3"].format(
-                        message.from_user.mention,
-                        app.mention,
-                        message.chat.title,
-                        app.mention,
-                    ),
+                    caption=caption,
                     reply_markup=InlineKeyboardMarkup(out),
                     has_spoiler=True,
                 )
