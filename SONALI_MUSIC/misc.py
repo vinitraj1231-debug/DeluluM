@@ -9,7 +9,42 @@ from SONALI_MUSIC.core.mongo import mongodb
 
 from .logging import LOGGER
 
-SUDOERS = filters.user()
+from pyrogram.filters import Filter
+
+class CustomSudoers(Filter):
+    def __init__(self):
+        super().__init__()
+        self.user_ids = set()
+
+    def add(self, user_id):
+        self.user_ids.add(user_id)
+
+    def remove(self, user_id):
+        self.user_ids.discard(user_id)
+
+    def copy(self):
+        return self.user_ids.copy()
+
+    def __contains__(self, user_id):
+        from SONALI_MUSIC import current_client, _main_app
+        try:
+            active_client = current_client.get()
+        except LookupError:
+            active_client = _main_app
+
+        if active_client and hasattr(active_client, "me") and active_client.me and active_client.me.id != _main_app.id:
+            if hasattr(active_client, "owner_id") and user_id == active_client.owner_id:
+                return True
+
+        return user_id in self.user_ids or user_id == config.OWNER_ID
+
+    async def __call__(self, client, update):
+        if not update.from_user:
+            return False
+        user_id = update.from_user.id
+        return user_id in self
+
+SUDOERS = CustomSudoers()
 
 HAPP = None
 _boot_ = time.time()

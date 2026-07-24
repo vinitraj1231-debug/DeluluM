@@ -439,6 +439,20 @@ async def add_off(on_off: int):
 
 
 async def is_maintenance():
+    # NOTE on Inverted Maintenance logic in this codebase:
+    # is_maintenance() returning False means Maintenance mode is ENABLED (standard users blocked).
+    # is_maintenance() returning True means Maintenance mode is DISABLED (standard operation).
+    from SONALI_MUSIC import current_client, _main_app
+    try:
+        active_client = current_client.get()
+    except LookupError:
+        active_client = _main_app
+
+    # Cloned bots should always bypass the main bot's maintenance block.
+    # Therefore, return True (maintenance disabled) for cloned bots.
+    if active_client and hasattr(active_client, "me") and active_client.me and active_client.me.id != _main_app.id:
+        return True
+
     if not maintenance:
         get = await onoffdb.find_one({"on_off": 1})
         if not get:

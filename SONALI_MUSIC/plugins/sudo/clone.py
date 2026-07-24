@@ -34,6 +34,7 @@ async def start_clone(bot_token: str, owner_id: int, session_string: str = None)
         client.name = client.me.first_name + " " + (client.me.last_name or "")
         client.username = client.me.username
         client.mention = client.me.mention
+        client.owner_id = owner_id
 
         # Copy handlers from main app
         for group, handlers in _main_app.dispatcher.groups.items():
